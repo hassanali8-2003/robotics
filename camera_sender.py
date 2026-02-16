@@ -44,7 +44,7 @@ def send_video():
             ws.close()
 
         except Exception as e:
-            print(f"An error occurred: {e}")
+            print("An error occurred: {e}")
             print("Retrying in 5 seconds...")
             time.sleep(5)
 

@@ -1,16 +1,26 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_joystick/flutter_joystick.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-void main() => runApp(const MyApp());
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const MyApp());
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
   @override
-  Widget build(BuildContext context) => MaterialApp(home: VideoStreamPage());
+  Widget build(BuildContext context) => const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: VideoStreamPage(),
+      );
 }
 
 class VideoStreamPage extends StatefulWidget {
+  const VideoStreamPage({super.key});
+
   @override
   State<VideoStreamPage> createState() => _VideoStreamPageState();
 }
@@ -18,53 +28,47 @@ class VideoStreamPage extends StatefulWidget {
 class _VideoStreamPageState extends State<VideoStreamPage> {
   late WebSocketChannel channel;
   Uint8List? currentFrame;
-  String logText = 'Connecting to server...\n';
 
   @override
   void initState() {
     super.initState();
+    // Set landscape orientation
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+    // Set full-screen mode
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     try {
       channel = WebSocketChannel.connect(
         Uri.parse('ws://172.23.200.150:8080'),
       );
 
-      log('WebSocket connected.');
-
       channel.stream.listen(
         (message) {
-          try {
-            // The message should be binary data (Uint8List).
-            if (message is Uint8List) {
-              setState(() {
-                currentFrame = message;
-              });
-            } else {
-                // Log if we receive unexpected text data
-                log('Received non-binary message: $message');
-            }
-          } catch (e) {
-            log('Error processing frame: $e');
+          if (message is Uint8List) {
+            setState(() {
+              currentFrame = message;
+            });
           }
         },
-        onError: (error) => log('WebSocket error: $error'),
-        onDone: () => log('WebSocket connection closed.'),
+        onError: (error) => print('WebSocket error: $error'),
+        onDone: () => print('WebSocket connection closed.'),
         cancelOnError: true,
       );
     } catch (e) {
-      log('Failed to connect: $e');
+      print('Failed to connect: $e');
     }
-  }
-
-  void log(String message) {
-    print(message);
-    setState(() {
-      logText += message + '\n';
-    });
   }
 
   @override
   void dispose() {
+    // Restore default orientations
+    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+    // Restore default UI mode
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
     channel.sink.close();
     super.dispose();
   }
@@ -72,28 +76,71 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Live Video Stream')),
-      body: Column(
+      backgroundColor: Colors.black,
+      body: Stack(
         children: [
-          Expanded(
-            flex: 3,
-            child: Center(
-              child: currentFrame != null
-                  ? Image.memory(currentFrame!, gaplessPlayback: true) // gaplessPlayback for smoother transitions
-                  : const Text('Waiting for video...'),
+          // Video Stream
+          Center(
+            child: currentFrame != null
+                ? Image.memory(
+                    currentFrame!,
+                    gaplessPlayback: true,
+                    width: double.infinity,
+                    height: double.infinity,
+                    fit: BoxFit.cover,
+                  )
+                : const CircularProgressIndicator(),
+          ),
+          // Joystick
+          Align(
+            alignment: const Alignment(0.8, 0.7),
+            child: SizedBox(
+              width: 150,
+              height: 150,
+              child: Joystick(
+                listener: (details) {
+                  // Handle joystick movement
+                  print('Joystick: x=${details.x.toStringAsFixed(2)}, y=${details.y.toStringAsFixed(2)}');
+                },
+                stick: JoystickStick(
+                    decoration: JoystickStickDecoration(
+                  color: const Color.fromRGBO(255, 255, 255, 0.5),
+
+                )),
+                base: JoystickBase(
+                    decoration: JoystickBaseDecoration(
+                  color: const Color.fromRGBO(255, 255, 255, 0.3),
+
+                )),
+              ),
             ),
           ),
-          Divider(),
-          Expanded(
-            flex: 1,
-            child: Container(
-              color: Colors.grey[200],
-              padding: const EdgeInsets.all(8),
-              child: SingleChildScrollView(
-                child: Text(
-                  logText,
-                  style: const TextStyle(fontSize: 12),
-                ),
+          // Icon Buttons
+          Align(
+            alignment: Alignment.topLeft,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.flash_on, color: Colors.white, size: 32),
+                    onPressed: () {
+                      print('Flash button pressed');
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.camera_alt, color: Colors.white, size: 32),
+                    onPressed: () {
+                      print('Camera button pressed');
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.videocam, color: Colors.white, size: 32),
+                    onPressed: () {
+                      print('Video button pressed');
+                    },
+                  ),
+                ],
               ),
             ),
           ),
