@@ -1,3 +1,27 @@
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:robotics/telemetry_screen.dart';
+void main(){
+  runApp(const MyApp());
+}
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: TelemetryScreen(),
+    );
+  }
+}
+
+
+
+
+
+
+
+/*
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -149,3 +173,4 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
     );
   }
 }
+*/

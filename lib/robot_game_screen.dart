@@ -4,6 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:flutter_joystick/flutter_joystick.dart';
 import 'package:sensors_plus/sensors_plus.dart';
+import 'dart:typed_data';
+import 'dart:convert';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +33,12 @@ class _RobotGameScreenState extends State<RobotGameScreen> {
   final RTCVideoRenderer _renderer = RTCVideoRenderer();
 
   StreamSubscription? _gyroSubscription;
+  late WebSocketChannel channel;
+
+  Uint8List? imageBytes;
+  int battery = 0;
+  String robotStatus = "Unknown";
+  String robotLocation = "Unknown";
 
   // Gyro values
   double gyroX = 0;
@@ -46,6 +55,7 @@ class _RobotGameScreenState extends State<RobotGameScreen> {
   @override
   void initState() {
     super.initState();
+    connectSocket();
     initCamera();
     startGyro();
   }
@@ -80,6 +90,31 @@ class _RobotGameScreenState extends State<RobotGameScreen> {
       updateCameraControl();
     });
   }
+
+  void connectSocket() {
+    channel = WebSocketChannel.connect(
+      Uri.parse('ws://172.23.200.150:8080'),
+    );
+
+    channel.stream.listen((message) {
+      if (message is Uint8List) {
+        setState(() {
+          imageBytes = message;
+        });
+      } else if (message is String) {
+        final data = jsonDecode(message);
+
+        if (data["type"] == "telemetry") {
+          setState(() {
+            battery = data["battery"];
+            robotStatus = data["status"];
+            robotLocation = data["location"];
+          });
+        }
+      }
+    });
+  }
+
 
   // =========================
   // JOYSTICK LISTENER
@@ -135,11 +170,20 @@ class _RobotGameScreenState extends State<RobotGameScreen> {
           /// FULLSCREEN VIDEO BACKGROUND
           Positioned.fill(
             child: _renderer.srcObject != null
-                ? RTCVideoView(
-              _renderer,
-              objectFit:
-              RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                ?
+            // RTCVideoView(
+            //   _renderer,
+            //   objectFit:
+            //   RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+            // )
+            imageBytes != null
+                ? Image.memory(
+              imageBytes!,
+              gaplessPlayback: true,
+              fit: BoxFit.cover,
             )
+                : const Center(child: CircularProgressIndicator())
+
                 : const Center(child: CircularProgressIndicator()),
           ),
 
@@ -175,15 +219,27 @@ class _RobotGameScreenState extends State<RobotGameScreen> {
             top: 20,
             left: 20,
             right: 20,
-            child: Row(
-              mainAxisAlignment:
-              MainAxisAlignment.spaceBetween,
+            child:
+            // Row(
+            //   mainAxisAlignment:
+            //   MainAxisAlignment.spaceBetween,
+            //   children: [
+            //     statusBox("CONNECTED", Colors.green),
+            //     statusBox("CAM: BACK", Colors.white),
+            //     statusBox("GYRO ACTIVE", Colors.orange),
+            //   ],
+            // ),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                statusBox("CONNECTED", Colors.green),
-                statusBox("CAM: BACK", Colors.white),
-                statusBox("GYRO ACTIVE", Colors.orange),
+                statusBox("BATTERY: $battery%",
+                    battery > 30 ? Colors.green : Colors.red),
+                statusBox("STATUS: $robotStatus", Colors.white),
+                statusBox("LOCATION: $robotLocation", Colors.orange),
               ],
-            ),
+            )
+
           ),
         ],
       ),

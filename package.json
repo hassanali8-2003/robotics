@@ -17,5 +17,13 @@
   "type": "commonjs",
   "dependencies": {
     "ws": "^8.19.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hassanali8-2003/robotics.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hassanali8-2003/robotics/issues"
+  },
+  "homepage": "https://github.com/hassanali8-2003/robotics#readme"
 }
